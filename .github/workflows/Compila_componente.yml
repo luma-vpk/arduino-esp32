@@ -25,7 +25,9 @@ jobs:
       run: bash ./esp32-arduino-lib-builder/tools/prepare-ci.sh
       
     - name: Build Libs for esp32
-      run: bash ./esp32-arduino-lib-builder/build.sh -I 'release/v4.4' -A 'idf-release/v4.4' -c ./
+      run: |
+        cd esp32-arduino-lib-builder
+        bash ./build.sh -I 'release/v4.4' -A 'idf-release/v4.4' -c '/home/runner/work/arduino-esp32/arduino-esp32/'
 
     - name: Set up Git
       run: |
