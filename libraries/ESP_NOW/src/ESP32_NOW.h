@@ -1,10 +1,40 @@
 #pragma once
 
+#include "sdkconfig.h"
+#if CONFIG_ESP_WIFI_REMOTE_ENABLED
+#warning "ESP-NOW is only supported in SoCs with native Wi-Fi support"
+#else
+
 #include "esp_wifi_types.h"
 #include "Print.h"
 #include "esp_now.h"
 #include "esp32-hal-log.h"
 #include "esp_mac.h"
+
+class ESP_NOW_Peer;  //forward declaration for friend function
+
+class ESP_NOW_Class : public Print {
+public:
+  const uint8_t BROADCAST_ADDR[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+
+  ESP_NOW_Class();
+  ~ESP_NOW_Class();
+
+  bool begin(const uint8_t *pmk = NULL /* 16 bytes */);
+  bool end();
+
+  int getTotalPeerCount();
+  int getEncryptedPeerCount();
+
+  int availableForWrite();
+  size_t write(const uint8_t *data, size_t len);
+  size_t write(uint8_t data) {
+    return write(&data, 1);
+  }
+
+  void onNewPeer(void (*cb)(const esp_now_recv_info_t *info, const uint8_t *data, int len, void *arg), void *arg);
+  bool removePeer(ESP_NOW_Peer &peer);
+};
 
 class ESP_NOW_Peer {
 private:
@@ -47,28 +77,10 @@ public:
   virtual void onSent(bool success) {
     log_i("Message transmission to peer " MACSTR " %s", MAC2STR(mac), success ? "successful" : "failed");
   }
-};
 
-class ESP_NOW_Class : public Print {
-public:
-  const uint8_t BROADCAST_ADDR[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-
-  ESP_NOW_Class();
-  ~ESP_NOW_Class();
-
-  bool begin(const uint8_t *pmk = NULL /* 16 bytes */);
-  bool end();
-
-  int getTotalPeerCount();
-  int getEncryptedPeerCount();
-
-  int availableForWrite();
-  size_t write(const uint8_t *data, size_t len);
-  size_t write(uint8_t data) {
-    return write(&data, 1);
-  }
-
-  void onNewPeer(void (*cb)(const esp_now_recv_info_t *info, const uint8_t *data, int len, void *arg), void *arg);
+  friend bool ESP_NOW_Class::removePeer(ESP_NOW_Peer &);
 };
 
 extern ESP_NOW_Class ESP_NOW;
+
+#endif

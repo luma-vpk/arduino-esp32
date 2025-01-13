@@ -371,7 +371,7 @@ void HTTPClient::disconnect(bool preserveClient) {
   if (connected()) {
     if (_client->available() > 0) {
       log_d("still data in buffer (%d), clean up.\n", _client->available());
-      _client->flush();
+      _client->clear();
     }
 
     if (_reuse && _canReuse) {
@@ -1362,7 +1362,7 @@ int HTTPClient::writeToStreamDataBlock(Stream *stream, int size) {
           // some time for the stream
           delay(1);
 
-          int leftBytes = (readBytes - bytesWrite);
+          int leftBytes = (bytesRead - bytesWrite);
 
           // retry to send the missed bytes
           bytesWrite = stream->write((buff + bytesWrite), leftBytes);
@@ -1385,7 +1385,7 @@ int HTTPClient::writeToStreamDataBlock(Stream *stream, int size) {
 
         // count bytes to read left
         if (len > 0) {
-          len -= readBytes;
+          len -= bytesRead;
         }
 
         delay(0);

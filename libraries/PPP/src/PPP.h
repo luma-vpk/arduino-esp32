@@ -1,7 +1,11 @@
 #pragma once
 
 #include "sdkconfig.h"
-#if CONFIG_LWIP_PPP_SUPPORT
+#if defined __has_include && __has_include("esp_modem_c_api_types.h")
+#define ARDUINO_HAS_ESP_MODEM 1
+#endif
+
+#if CONFIG_LWIP_PPP_SUPPORT && ARDUINO_HAS_ESP_MODEM
 #include "Network.h"
 #include "esp_modem_c_api_types.h"
 
@@ -49,6 +53,9 @@ public:
   int radioState() const;       // 0:minimal, 1:full
   bool attached() const;        // true is attached to network
   bool sync() const;            // true if responds to 'AT'
+  int batteryVoltage() const;
+  int batteryLevel() const;
+  int batteryStatus() const;
 
   // Switch the communication mode
   bool mode(esp_modem_dce_mode_t m);
@@ -106,5 +113,4 @@ private:
 };
 
 extern PPPClass PPP;
-
-#endif /* CONFIG_LWIP_PPP_SUPPORT */
+#endif /* CONFIG_LWIP_PPP_SUPPORT && ARDUINO_HAS_ESP_MODEM */

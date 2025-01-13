@@ -1,3 +1,17 @@
+// Copyright 2024 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "OThreadCLI.h"
 #if SOC_IEEE802154_SUPPORTED
 #if CONFIG_OPENTHREAD_ENABLED
@@ -16,17 +30,20 @@
 #include "freertos/semphr.h"
 #include "freertos/queue.h"
 
-#include "esp_netif.h"
-#include "esp_netif_types.h"
+#include "esp_netif_net_stack.h"
+#include "lwip/netif.h"
 
 static TaskHandle_t s_cli_task = NULL;
 static TaskHandle_t s_console_cli_task = NULL;
-static xQueueHandle rx_queue = NULL;
-static xQueueHandle tx_queue = NULL;
+static QueueHandle_t rx_queue = NULL;
+static QueueHandle_t tx_queue = NULL;
 
 static esp_openthread_platform_config_t ot_native_config;
 static TaskHandle_t s_ot_task = NULL;
 static esp_netif_t *openthread_netif = NULL;
+#if CONFIG_LWIP_HOOK_IP6_INPUT_CUSTOM
+static struct netif *ot_lwip_netif = NULL;
+#endif
 
 #define OT_CLI_MAX_LINE_LENGTH 512
 
@@ -37,6 +54,20 @@ typedef struct {
   OnReceiveCb_t responseCallBack;
 } ot_cli_console_t;
 static ot_cli_console_t otConsole = {NULL, false, (const char *)NULL, NULL};
+
+#if CONFIG_LWIP_HOOK_IP6_INPUT_CUSTOM
+extern "C" int lwip_hook_ip6_input(struct pbuf *p, struct netif *inp) {
+  if (ot_lwip_netif && ot_lwip_netif == inp) {
+    return 0;
+  }
+  if (ip6_addr_isany_val(inp->ip6_addr[0].u_addr.ip6)) {
+    // We don't have an LL address -> eat this packet here, so it won't get accepted on input netif
+    pbuf_free(p);
+    return 1;
+  }
+  return 0;
+}
+#endif
 
 // process the CLI commands sent to the OpenThread stack
 static void ot_cli_loop(void *context) {
@@ -258,6 +289,15 @@ static void ot_task_worker(void *aContext) {
     // Initialize the esp_netif bindings
     esp_netif_config_t cfg = ESP_NETIF_DEFAULT_OPENTHREAD();
     openthread_netif = esp_netif_new(&cfg);
+#if CONFIG_LWIP_HOOK_IP6_INPUT_CUSTOM
+    // Get LwIP Netif
+    if (openthread_netif != NULL) {
+      ot_lwip_netif = (struct netif *)esp_netif_get_netif_impl(openthread_netif);
+      if (ot_lwip_netif == NULL) {
+        log_e("Failed to get OpenThread LwIP netif");
+      }
+    }
+#endif
   }
   if (!err && openthread_netif == NULL) {
     log_e("Failed to create OpenThread esp_netif");
@@ -335,6 +375,9 @@ void OpenThreadCLI::end() {
     // Clean up
     esp_openthread_deinit();
     esp_openthread_netif_glue_deinit();
+#if CONFIG_LWIP_HOOK_IP6_INPUT_CUSTOM
+    ot_lwip_netif = NULL;
+#endif
     esp_netif_destroy(openthread_netif);
     esp_vfs_eventfd_unregister();
   }
@@ -360,7 +403,7 @@ size_t OpenThreadCLI::write(uint8_t c) {
   return 1;
 }
 
-size_t OpenThreadCLI::setBuffer(xQueueHandle &queue, size_t queue_len) {
+size_t OpenThreadCLI::setBuffer(QueueHandle_t &queue, size_t queue_len) {
   if (queue) {
     vQueueDelete(queue);
     queue = NULL;

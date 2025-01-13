@@ -26,6 +26,7 @@ extern "C" {
 #include <stdbool.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include "hal/ledc_types.h"
 
 typedef enum {
   NOTE_C,
@@ -56,6 +57,22 @@ typedef struct {
   SemaphoreHandle_t lock;  //xSemaphoreCreateBinary
 #endif
 } ledc_channel_handle_t;
+
+/**
+ * @brief Get the LEDC clock source.
+ *
+ * @return LEDC clock source.
+ */
+ledc_clk_cfg_t ledcGetClockSource(void);
+
+/**
+ * @brief Set the LEDC clock source.
+ *
+ * @param source LEDC clock source to set.
+ *
+ * @return true if LEDC clock source was successfully set, false otherwise.
+ */
+bool ledcSetClockSource(ledc_clk_cfg_t source);
 
 /**
  * @brief Attach a pin to the LEDC driver, with a given frequency and resolution.
@@ -90,6 +107,16 @@ bool ledcAttachChannel(uint8_t pin, uint32_t freq, uint8_t resolution, uint8_t c
  * @return true if duty cycle was successfully set, false otherwise.
  */
 bool ledcWrite(uint8_t pin, uint32_t duty);
+
+/**
+ * @brief Set the duty cycle of a given channel.
+ *
+ * @param channel LEDC channel
+ * @param duty duty cycle to set
+ *
+ * @return true if duty cycle was successfully set, false otherwise.
+ */
+bool ledcWriteChannel(uint8_t channel, uint32_t duty);
 
 /**
  * @brief Sets the duty to 50 % PWM tone on selected frequency.
