@@ -89,7 +89,7 @@
 #define interrupts()   sei()
 #define noInterrupts() cli()
 
-#define clockCyclesPerMicrosecond()  (F_CPU / 1000000L)
+#define clockCyclesPerMicrosecond()  ((long int)getCpuFrequencyMhz())
 #define clockCyclesToMicroseconds(a) ((a) / clockCyclesPerMicrosecond())
 #define microsecondsToClockCycles(a) ((a) * clockCyclesPerMicrosecond())
 
